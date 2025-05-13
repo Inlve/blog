@@ -1,0 +1,44 @@
+name: Deploy Hugo site to Pages
+
+on:
+  push:
+    branches:
+      - main  # 监视 main 分支的 push 事件
+  pull_request: # 在 pull request 时也构建，但不部署
+
+# 允许 GITHUB_TOKEN 对 gh-pages 分支进行写操作
+permissions:
+  contents: write
+
+jobs:
+  build-deploy:
+    concurrency: # 确保同一时间只有一个部署任务在运行
+      group: ${{ github.workflow }}-${{ github.ref }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4 # 使用最新的 checkout action
+        with:
+          submodules: recursive # 获取 Git Submodule 主题
+          fetch-depth: 0        # 获取所有历史记录，以便 Hugo lastmod 等功能正常工作
+
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v3 # 使用最新的 Hugo setup action
+        with:
+          hugo-version: 'latest' # 或者指定一个版本 '0.123.7'
+          extended: true # 大部分主题需要 extended 版本
+
+      - name: Build
+        run: hugo --minify # 构建网站, --minify 压缩输出
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v4 # 使用最新的 gh-pages action
+        # if: github.ref == 'refs/heads/main' # 只有当推送到 main 分支时才部署 (这个条件在 on.push.branches 中已隐含)
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          # publish_branch: gh-pages # 默认就是 gh-pages
+          # cname: your.custom.domain.com # 如果你有自定义域名
+          # user_name: 'github-actions[bot]' # 自定义提交者名称
+          # user_email: 'github-actions[bot]@users.noreply.github.com' # 自定义提交者邮箱
+          # commit_message: ${{ github.event.head_commit.message }} # 使用原始提交信息
